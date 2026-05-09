@@ -23,9 +23,10 @@
             border-radius: 25px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             text-align: center;
-            max-width: 650px;
+            max-width: 700px;
             width: 100%;
             border: 5px solid #bbf7d0;
+            position: relative;
         }
         h1 {
             color: #f59e0b;
@@ -121,17 +122,68 @@
             margin-top: 15px;
             min-height: 40px;
         }
+
+        /* KHU VỰC ĐIỂM SỐ VÀ LỊCH SỬ */
+        .bottom-panel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
         .score-board {
             font-size: 1.3em;
             color: #ef4444;
             font-weight: bold;
-            margin-top: 20px;
             background: #fee2e2;
-            padding: 10px;
+            padding: 10px 20px;
             border-radius: 15px;
-            display: inline-block;
         }
+        .btn-history {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #6d28d9;
+            transition: 0.2s;
+        }
+        .btn-history:hover { background: #7c3aed; transform: translateY(2px); box-shadow: 0 2px 0 #6d28d9; }
+        
         .confetti { position: fixed; z-index: 9999; pointer-events: none; transition: all 1.5s ease-out; }
+
+        /* MODAL LỊCH SỬ */
+        #history-modal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.8);
+            display: none; justify-content: center; align-items: center; z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+        #history-modal.show { display: flex; }
+        .history-content {
+            background: white; width: 90%; max-width: 600px; max-height: 80vh;
+            border-radius: 20px; padding: 25px; box-sizing: border-box;
+            display: flex; flex-direction: column; position: relative;
+            border: 5px solid #8b5cf6;
+        }
+        .close-history {
+            position: absolute; top: 15px; right: 20px; font-size: 30px; font-weight: bold;
+            color: #ef4444; cursor: pointer; line-height: 1;
+        }
+        .history-title { color: #6d28d9; font-size: 1.8em; margin: 0 0 20px 0; border-bottom: 3px dashed #ddd; padding-bottom: 10px; }
+        
+        .history-list { overflow-y: auto; flex-grow: 1; padding-right: 10px; text-align: left; }
+        .h-item { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .h-question { font-size: 1.2em; color: #0369a1; font-weight: bold; margin-bottom: 10px; line-height: 1.4; }
+        .h-attempts { font-size: 1.1em; color: #475569; display: flex; flex-wrap: wrap; gap: 8px; }
+        .attempt-tag { padding: 5px 10px; border-radius: 8px; font-weight: bold; }
+        .tag-wrong { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+        .tag-right { background: #dcfce7; color: #16a34a; border: 1px solid #86efac; }
+        .tag-skipped { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+
     </style>
 </head>
 <body>
@@ -156,13 +208,31 @@
         <button class="btn btn-next" id="btn-next" onclick="generateQuestion()">Câu tiếp theo ➔</button>
 
         <div class="feedback" id="feedback"></div>
-        <div class="score-board">Điểm của con: ⭐ <span id="score">0</span></div>
+        
+        <div class="bottom-panel">
+            <div class="score-board">Điểm: ⭐ <span id="score">0</span></div>
+            <button class="btn-history" onclick="showHistory()">📜 Xem Lịch Sử</button>
+        </div>
+    </div>
+
+    <div id="history-modal">
+        <div class="history-content">
+            <span class="close-history" onclick="closeHistory()">&times;</span>
+            <h2 class="history-title">Nhật ký làm bài của con 📖</h2>
+            <div class="history-list" id="history-list">
+                </div>
+        </div>
     </div>
 
     <script>
         let score = 0;
         let currentAnswer = 0;
         let currentMode = 'all';
+
+        // Biến lưu trữ lịch sử
+        let historyData = [];
+        let currentQuestionText = '';
+        let currentAttempts = []; // Lưu các lần thử của câu hiện tại
 
         function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
         function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -176,6 +246,20 @@
         }
 
         function generateQuestion() {
+            // NẾU CÓ CÂU HỎI TRƯỚC ĐÓ MÀ CHƯA TRẢ LỜI ĐÚNG HOẶC ĐÃ CÓ LẦN THỬ, LƯU VÀO LỊCH SỬ (DẠNG BỎ QUA)
+            if (currentQuestionText !== '') {
+                if (currentAttempts.length > 0 && currentAttempts[currentAttempts.length-1].status !== 'right') {
+                    historyData.unshift({
+                        question: currentQuestionText,
+                        attempts: [...currentAttempts, { val: 'Bỏ qua', status: 'skipped' }]
+                    });
+                } else if (currentAttempts.length === 0) {
+                    // Nếu ấn qua luôn mà chưa điền gì (Có thể bỏ qua không lưu để đỡ rác lịch sử)
+                }
+            }
+
+            // RESET TRẠNG THÁI CHO CÂU MỚI
+            currentAttempts = []; 
             document.getElementById('answer').value = '';
             document.getElementById('answer').disabled = false;
             document.getElementById('feedback').innerHTML = '';
@@ -184,126 +268,75 @@
             document.getElementById('answer').focus();
             
             let type = currentMode;
-            if (type === 'all') {
-                type = pick(['basic', 'missing', 'word']);
-            }
+            if (type === 'all') type = pick(['basic', 'missing', 'word']);
 
             let result = { q: '', a: 0 };
-
-            if (type === 'basic') {
-                result = genBasicMath();
-            } else if (type === 'missing') {
-                result = genMissingMath();
-            } else if (type === 'word') {
-                result = genWordProblem();
-            }
+            if (type === 'basic') result = genBasicMath();
+            else if (type === 'missing') result = genMissingMath();
+            else if (type === 'word') result = genWordProblem();
 
             currentAnswer = result.a;
+            currentQuestionText = result.q; // Lưu lại câu hỏi hiện tại
             document.getElementById('question').innerText = result.q;
         }
 
-        // TẠO PHÉP TÍNH 2 HOẶC 3 SỐ
         function genBasicMath() {
-            let isThree = Math.random() > 0.4; // 60% khả năng ra 3 số
-            let a = rand(5, 60);
-            let ans = a;
-            let q = `${a}`;
-
+            let isThree = Math.random() > 0.4; 
+            let a = rand(5, 60); let ans = a; let q = `${a}`;
             let op1 = Math.random() > 0.5 ? '+' : '-';
             let b = rand(5, op1 === '+' ? 100 - a : a);
-            ans = op1 === '+' ? ans + b : ans - b;
-            q += ` ${op1} ${b}`;
+            ans = op1 === '+' ? ans + b : ans - b; q += ` ${op1} ${b}`;
 
             if (isThree) {
                 let op2 = Math.random() > 0.5 ? '+' : '-';
-                // Đảm bảo kết quả phép tính 3 số không bị âm và không quá 100
                 let c = rand(2, op2 === '+' ? 100 - ans : ans);
-                ans = op2 === '+' ? ans + c : ans - c;
-                q += ` ${op2} ${c}`;
+                ans = op2 === '+' ? ans + c : ans - c; q += ` ${op2} ${c}`;
             }
-
             return { q: `${q} = ?`, a: ans };
         }
 
-        // TẠO BÀI TOÁN TÌM SỐ BÍ ẨN (X)
         function genMissingMath() {
             let isThree = Math.random() > 0.4; 
-            let a = rand(5, 50);
-            let ans = a;
-            let elements = [a];
-            let ops = [];
-
+            let a = rand(5, 50); let ans = a; let elements = [a]; let ops = [];
             let op1 = Math.random() > 0.5 ? '+' : '-';
             let b = rand(5, op1 === '+' ? 100 - a : a);
-            ans = op1 === '+' ? ans + b : ans - b;
-            elements.push(b);
-            ops.push(op1);
+            ans = op1 === '+' ? ans + b : ans - b; elements.push(b); ops.push(op1);
 
             if (isThree) {
                 let op2 = Math.random() > 0.5 ? '+' : '-';
                 let c = rand(2, op2 === '+' ? 100 - ans : ans);
-                ans = op2 === '+' ? ans + c : ans - c;
-                elements.push(c);
-                ops.push(op2);
+                ans = op2 === '+' ? ans + c : ans - c; elements.push(c); ops.push(op2);
             }
 
-            // Chọn ngẫu nhiên 1 vị trí để biến thành "..."
             let hideIdx = rand(0, elements.length - 1);
-            let hiddenVal = elements[hideIdx];
-            elements[hideIdx] = '...';
-
+            let hiddenVal = elements[hideIdx]; elements[hideIdx] = '...';
             let qText = `${elements[0]}`;
-            for(let i = 0; i < ops.length; i++){
-                qText += ` ${ops[i]} ${elements[i+1]}`;
-            }
+            for(let i = 0; i < ops.length; i++) qText += ` ${ops[i]} ${elements[i+1]}`;
             qText += ` = ${ans}`;
-
             return { q: qText, a: hiddenVal };
         }
 
-        // TẠO TOÁN ĐỐ 5 DẠNG KHÁC NHAU
         function genWordProblem() {
             const names = ["Nga", "Linh", "Minh", "Lan", "Hải", "An", "Bảo", "Chi", "Hương", "Long"];
             const items = ["quả cam", "quả táo", "viên bi", "cái kẹo", "quyển vở", "bông hoa", "chiếc bút"];
-
-            let n1 = pick(names), n2 = pick(names);
-            while(n1 === n2) n2 = pick(names);
+            let n1 = pick(names), n2 = pick(names); while(n1 === n2) n2 = pick(names);
             let item = pick(items);
-
-            let kieuBai = rand(1, 5);
-            let qText = "";
-            let ans = 0;
+            let kieuBai = rand(1, 5); let qText = ""; let ans = 0;
 
             if (kieuBai === 1) { 
-                // Dạng 1: Cho tổng C, A có X. Hỏi B có bao nhiêu?
-                let x = rand(10, 50);
-                let y = rand(10, 50);
-                let c = x + y;
-                ans = y;
+                let x = rand(10, 50); let y = rand(10, 50); let c = x + y; ans = y;
                 qText = `Hai bạn ${n1} và ${n2} có tất cả ${c} ${item}. Bạn ${n1} có ${x} ${item}. Hỏi bạn ${n2} có bao nhiêu ${item}?`;
             } else if (kieuBai === 2) { 
-                // Dạng 2: A có X, B nhiều hơn Y.
-                let x = rand(10, 50);
-                let y = rand(5, 30);
-                ans = x + y;
+                let x = rand(10, 50); let y = rand(5, 30); ans = x + y;
                 qText = `Bạn ${n1} có ${x} ${item}. Bạn ${n2} có nhiều hơn bạn ${n1} ${y} ${item}. Hỏi bạn ${n2} có bao nhiêu ${item}?`;
             } else if (kieuBai === 3) { 
-                // Dạng 3: A có X, B ít hơn Y.
-                let x = rand(20, 70);
-                let y = rand(5, x - 5);
-                ans = x - y;
+                let x = rand(20, 70); let y = rand(5, x - 5); ans = x - y;
                 qText = `Bạn ${n1} có ${x} ${item}. Bạn ${n2} có ít hơn bạn ${n1} ${y} ${item}. Hỏi bạn ${n2} có bao nhiêu ${item}?`;
             } else if (kieuBai === 4) { 
-                // Dạng 4: Cộng 2 số bình thường
-                let x = rand(10, 40);
-                let y = rand(10, 40);
-                ans = x + y;
+                let x = rand(10, 40); let y = rand(10, 40); ans = x + y;
                 qText = `Bạn ${n1} có ${x} ${item}, bạn ${n2} có ${y} ${item}. Hỏi cả hai bạn có tất cả bao nhiêu ${item}?`;
             } else if (kieuBai === 5) { 
-                // Dạng 5: Trừ đi
-                let x = rand(20, 60);
-                let y = rand(5, x - 5);
-                ans = x - y;
+                let x = rand(20, 60); let y = rand(5, x - 5); ans = x - y;
                 qText = `Bạn ${n1} có ${x} ${item}. ${n1} cho bạn ${n2} ${y} ${item}. Hỏi bạn ${n1} còn lại bao nhiêu ${item}?`;
             }
             return { q: qText, a: ans };
@@ -320,6 +353,15 @@
             }
 
             if (userAnswer === currentAnswer) {
+                // Làm đúng
+                currentAttempts.push({ val: userAnswer, status: 'right' });
+                
+                // Ghi vào lịch sử (Đẩy lên đầu để câu mới nhất nằm trên)
+                historyData.unshift({
+                    question: currentQuestionText,
+                    attempts: [...currentAttempts]
+                });
+
                 feedbackEl.innerText = "Chính xác! Hoan hô con! 🎉";
                 feedbackEl.style.color = "#16a34a";
                 score += 10;
@@ -332,6 +374,9 @@
 
                 shootConfetti(); 
             } else {
+                // Làm sai
+                currentAttempts.push({ val: userAnswer, status: 'wrong' });
+
                 feedbackEl.innerText = "Chưa đúng rồi, con tính lại thử xem! 💪";
                 feedbackEl.style.color = "#ef4444";
                 document.getElementById('answer').value = '';
@@ -355,20 +400,50 @@
                 let el = document.createElement('div');
                 el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
                 el.className = 'confetti';
-                
                 el.style.left = (Math.random() * 100) + 'vw';
                 el.style.top = '100vh';
                 el.style.fontSize = (Math.random() * 20 + 20) + 'px';
-                
                 document.body.appendChild(el);
                 
                 setTimeout(() => {
                     el.style.top = '-' + (Math.random() * 20 + 10) + 'vh';
                     el.style.transform = `rotate(${Math.random() * 720 - 360}deg)`;
                 }, 50);
-                
                 setTimeout(() => el.remove(), 1500);
             }
+        }
+
+        // --- XỬ LÝ LỊCH SỬ ---
+        function showHistory() {
+            let listEl = document.getElementById('history-list');
+            if (historyData.length === 0) {
+                listEl.innerHTML = "<p style='color:#64748b; font-size:1.2em; text-align:center;'>Con chưa làm xong câu nào cả. Hãy làm bài để có lịch sử nhé! 🚀</p>";
+            } else {
+                listEl.innerHTML = historyData.map((item, index) => {
+                    // Tạo các nút tag (Sai/Đúng)
+                    let tags = item.attempts.map((att, i) => {
+                        let className = '';
+                        let text = '';
+                        if (att.status === 'right') { className = 'tag-right'; text = `Lần ${i+1}: ${att.val} (Đúng)`; }
+                        else if (att.status === 'wrong') { className = 'tag-wrong'; text = `Lần ${i+1}: ${att.val} (Sai)`; }
+                        else { className = 'tag-skipped'; text = `Bỏ qua câu này`; }
+                        return `<span class="attempt-tag ${className}">${text}</span>`;
+                    }).join('');
+
+                    return `
+                        <div class="h-item">
+                            <div class="h-question">Câu ${historyData.length - index}: ${item.question}</div>
+                            <div class="h-attempts">${tags}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            document.getElementById('history-modal').classList.add('show');
+        }
+
+        function closeHistory() {
+            document.getElementById('history-modal').classList.remove('show');
+            document.getElementById('answer').focus(); // Focus lại để bé làm tiếp
         }
 
         window.onload = generateQuestion;

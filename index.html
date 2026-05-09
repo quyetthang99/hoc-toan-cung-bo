@@ -23,7 +23,7 @@
             border-radius: 25px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             text-align: center;
-            max-width: 600px;
+            max-width: 650px;
             width: 100%;
             border: 5px solid #bbf7d0;
         }
@@ -116,7 +116,7 @@
         .btn-next:active { box-shadow: 0 0 0 #1d4ed8; }
 
         .feedback {
-            font-size: 1.8em;
+            font-size: 1.6em;
             font-weight: bold;
             margin-top: 15px;
             min-height: 40px;
@@ -131,7 +131,6 @@
             border-radius: 15px;
             display: inline-block;
         }
-        /* Pháo hoa */
         .confetti { position: fixed; z-index: 9999; pointer-events: none; transition: all 1.5s ease-out; }
     </style>
 </head>
@@ -141,9 +140,9 @@
         <h1>🎈 Làm Toán Cùng Bố 🎈</h1>
         
         <div class="modes">
-            <button class="mode-btn active" onclick="setMode('all', this)">Trộn lẫn</button>
-            <button class="mode-btn" onclick="setMode('basic', this)">Cộng Trừ</button>
-            <button class="mode-btn" onclick="setMode('missing', this)">Tìm số (X)</button>
+            <button class="mode-btn active" onclick="setMode('all', this)">Trộn lẫn ngẫu nhiên</button>
+            <button class="mode-btn" onclick="setMode('basic', this)">Tính nhanh</button>
+            <button class="mode-btn" onclick="setMode('missing', this)">Tìm số bí ẩn</button>
             <button class="mode-btn" onclick="setMode('word', this)">Toán đố</button>
         </div>
 
@@ -165,14 +164,11 @@
         let currentAnswer = 0;
         let currentMode = 'all';
 
-        // Hàm tiện ích tạo số ngẫu nhiên
-        function getRandomInt(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        }
+        function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
         function setMode(mode, btnElement) {
             currentMode = mode;
-            // Đổi màu nút
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
             generateQuestion();
@@ -180,7 +176,6 @@
         }
 
         function generateQuestion() {
-            // Reset giao diện
             document.getElementById('answer').value = '';
             document.getElementById('answer').disabled = false;
             document.getElementById('feedback').innerHTML = '';
@@ -190,73 +185,128 @@
             
             let type = currentMode;
             if (type === 'all') {
-                const types = ['basic', 'missing', 'missing3', 'word_add', 'word_sub'];
-                type = types[Math.floor(Math.random() * types.length)];
-            } else if (type === 'word') {
-                type = Math.random() > 0.5 ? 'word_add' : 'word_sub';
-            } else if (type === 'missing') {
-                type = Math.random() > 0.5 ? 'missing' : 'missing3';
+                type = pick(['basic', 'missing', 'word']);
             }
 
-            let qText = '';
-            
+            let result = { q: '', a: 0 };
+
             if (type === 'basic') {
-                let a = getRandomInt(10, 80);
-                let b = getRandomInt(10, 50);
-                if (Math.random() > 0.5) {
-                    currentAnswer = a + b;
-                    qText = `${a} + ${b} = ?`;
-                } else {
-                    if (a < b) [a, b] = [b, a]; // Đảm bảo a lớn hơn b để trừ không ra số âm
-                    currentAnswer = a - b;
-                    qText = `${a} - ${b} = ?`;
-                }
-            } 
-            else if (type === 'missing') {
-                // Dạng: A + ... = C  hoặc  ... + B = C
-                let a = getRandomInt(10, 50);
-                let ans = getRandomInt(5, 40);
-                let c = a + ans;
-                currentAnswer = ans;
-                if (Math.random() > 0.5) {
-                    qText = `${a} + ... = ${c}`;
-                } else {
-                    qText = `... + ${a} = ${c}`;
-                }
-            }
-            else if (type === 'missing3') {
-                // Dạng: 12 + ... + 25 = 49
-                let a = getRandomInt(10, 30);
-                let b = getRandomInt(10, 30);
-                let ans = getRandomInt(5, 20);
-                let c = a + b + ans;
-                currentAnswer = ans;
-                qText = `${a} + ... + ${b} = ${c}`;
-            }
-            else if (type.startsWith('word')) {
-                // Ngân hàng từ vựng cho bài toán đố
-                const names = ["Nga", "Linh", "Minh", "Lan", "Hải", "An", "Bảo", "Chi"];
-                const items = ["quả cam", "quả táo", "viên bi", "cái kẹo", "quyển vở", "bông hoa"];
-                
-                let n1 = names[getRandomInt(0, names.length-1)];
-                let n2 = names[getRandomInt(0, names.length-1)];
-                while(n1 === n2) n2 = names[getRandomInt(0, names.length-1)];
-                let item = items[getRandomInt(0, items.length-1)];
-                
-                if (type === 'word_add') {
-                    let a = getRandomInt(10, 30);
-                    let b = getRandomInt(5, 25);
-                    currentAnswer = a + b;
-                    qText = `Bạn ${n1} có ${a} ${item}, bạn ${n2} có ${b} ${item}. Hỏi cả hai bạn có tất cả bao nhiêu ${item}?`;
-                } else {
-                    let a = getRandomInt(20, 50);
-                    let b = getRandomInt(5, a-5); // Đảm bảo số cho đi nhỏ hơn số ban đầu
-                    currentAnswer = a - b;
-                    qText = `Bạn ${n1} có ${a} ${item}. ${n1} cho bạn ${n2} ${b} ${item}. Hỏi ${n1} còn lại bao nhiêu ${item}?`;
-                }
+                result = genBasicMath();
+            } else if (type === 'missing') {
+                result = genMissingMath();
+            } else if (type === 'word') {
+                result = genWordProblem();
             }
 
-            document.getElementById('question').innerText = qText;
+            currentAnswer = result.a;
+            document.getElementById('question').innerText = result.q;
+        }
+
+        // TẠO PHÉP TÍNH 2 HOẶC 3 SỐ
+        function genBasicMath() {
+            let isThree = Math.random() > 0.4; // 60% khả năng ra 3 số
+            let a = rand(5, 60);
+            let ans = a;
+            let q = `${a}`;
+
+            let op1 = Math.random() > 0.5 ? '+' : '-';
+            let b = rand(5, op1 === '+' ? 100 - a : a);
+            ans = op1 === '+' ? ans + b : ans - b;
+            q += ` ${op1} ${b}`;
+
+            if (isThree) {
+                let op2 = Math.random() > 0.5 ? '+' : '-';
+                // Đảm bảo kết quả phép tính 3 số không bị âm và không quá 100
+                let c = rand(2, op2 === '+' ? 100 - ans : ans);
+                ans = op2 === '+' ? ans + c : ans - c;
+                q += ` ${op2} ${c}`;
+            }
+
+            return { q: `${q} = ?`, a: ans };
+        }
+
+        // TẠO BÀI TOÁN TÌM SỐ BÍ ẨN (X)
+        function genMissingMath() {
+            let isThree = Math.random() > 0.4; 
+            let a = rand(5, 50);
+            let ans = a;
+            let elements = [a];
+            let ops = [];
+
+            let op1 = Math.random() > 0.5 ? '+' : '-';
+            let b = rand(5, op1 === '+' ? 100 - a : a);
+            ans = op1 === '+' ? ans + b : ans - b;
+            elements.push(b);
+            ops.push(op1);
+
+            if (isThree) {
+                let op2 = Math.random() > 0.5 ? '+' : '-';
+                let c = rand(2, op2 === '+' ? 100 - ans : ans);
+                ans = op2 === '+' ? ans + c : ans - c;
+                elements.push(c);
+                ops.push(op2);
+            }
+
+            // Chọn ngẫu nhiên 1 vị trí để biến thành "..."
+            let hideIdx = rand(0, elements.length - 1);
+            let hiddenVal = elements[hideIdx];
+            elements[hideIdx] = '...';
+
+            let qText = `${elements[0]}`;
+            for(let i = 0; i < ops.length; i++){
+                qText += ` ${ops[i]} ${elements[i+1]}`;
+            }
+            qText += ` = ${ans}`;
+
+            return { q: qText, a: hiddenVal };
+        }
+
+        // TẠO TOÁN ĐỐ 5 DẠNG KHÁC NHAU
+        function genWordProblem() {
+            const names = ["Nga", "Linh", "Minh", "Lan", "Hải", "An", "Bảo", "Chi", "Hương", "Long"];
+            const items = ["quả cam", "quả táo", "viên bi", "cái kẹo", "quyển vở", "bông hoa", "chiếc bút"];
+
+            let n1 = pick(names), n2 = pick(names);
+            while(n1 === n2) n2 = pick(names);
+            let item = pick(items);
+
+            let kieuBai = rand(1, 5);
+            let qText = "";
+            let ans = 0;
+
+            if (kieuBai === 1) { 
+                // Dạng 1: Cho tổng C, A có X. Hỏi B có bao nhiêu?
+                let x = rand(10, 50);
+                let y = rand(10, 50);
+                let c = x + y;
+                ans = y;
+                qText = `Hai bạn ${n1} và ${n2} có tất cả ${c} ${item}. Bạn ${n1} có ${x} ${item}. Hỏi bạn ${n2} có bao nhiêu ${item}?`;
+            } else if (kieuBai === 2) { 
+                // Dạng 2: A có X, B nhiều hơn Y.
+                let x = rand(10, 50);
+                let y = rand(5, 30);
+                ans = x + y;
+                qText = `Bạn ${n1} có ${x} ${item}. Bạn ${n2} có nhiều hơn bạn ${n1} ${y} ${item}. Hỏi bạn ${n2} có bao nhiêu ${item}?`;
+            } else if (kieuBai === 3) { 
+                // Dạng 3: A có X, B ít hơn Y.
+                let x = rand(20, 70);
+                let y = rand(5, x - 5);
+                ans = x - y;
+                qText = `Bạn ${n1} có ${x} ${item}. Bạn ${n2} có ít hơn bạn ${n1} ${y} ${item}. Hỏi bạn ${n2} có bao nhiêu ${item}?`;
+            } else if (kieuBai === 4) { 
+                // Dạng 4: Cộng 2 số bình thường
+                let x = rand(10, 40);
+                let y = rand(10, 40);
+                ans = x + y;
+                qText = `Bạn ${n1} có ${x} ${item}, bạn ${n2} có ${y} ${item}. Hỏi cả hai bạn có tất cả bao nhiêu ${item}?`;
+            } else if (kieuBai === 5) { 
+                // Dạng 5: Trừ đi
+                let x = rand(20, 60);
+                let y = rand(5, x - 5);
+                ans = x - y;
+                qText = `Bạn ${n1} có ${x} ${item}. ${n1} cho bạn ${n2} ${y} ${item}. Hỏi bạn ${n1} còn lại bao nhiêu ${item}?`;
+            }
+            return { q: qText, a: ans };
         }
 
         function checkAnswer() {
@@ -274,62 +324,53 @@
                 feedbackEl.style.color = "#16a34a";
                 score += 10;
                 document.getElementById('score').innerText = score;
-                document.getElementById('answer').disabled = true; // Khóa ô nhập
+                document.getElementById('answer').disabled = true; 
                 
-                // Đổi nút
                 document.getElementById('btn-submit').style.display = 'none';
                 document.getElementById('btn-next').style.display = 'inline-block';
                 document.getElementById('btn-next').focus();
 
-                shootConfetti(); // Bắn pháo hoa
+                shootConfetti(); 
             } else {
                 feedbackEl.innerText = "Chưa đúng rồi, con tính lại thử xem! 💪";
                 feedbackEl.style.color = "#ef4444";
                 document.getElementById('answer').value = '';
                 document.getElementById('answer').focus();
                 
-                // Trừ điểm nhẹ nếu sai để bé cẩn thận hơn (không trừ xuống dưới 0)
                 if (score > 0) score -= 2;
                 document.getElementById('score').innerText = score;
             }
         }
 
-        // Bấm Enter để nộp bài
         function handleEnter(e) {
             if (e.key === 'Enter') {
-                if (document.getElementById('btn-submit').style.display !== 'none') {
-                    checkAnswer();
-                }
+                if (document.getElementById('btn-submit').style.display !== 'none') checkAnswer();
+                else generateQuestion();
             }
         }
 
-        // Hiệu ứng pháo hoa vui nhộn không cần dùng thư viện ngoài
         function shootConfetti() {
             const emojis = ['🌟', '⭐', '✨', '🎉', '🎊', '🍎', '🎈', '🏆'];
-            for(let i = 0; i < 20; i++) {
+            for(let i = 0; i < 25; i++) {
                 let el = document.createElement('div');
                 el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
                 el.className = 'confetti';
                 
-                // Vị trí bắt đầu ở dưới màn hình
                 el.style.left = (Math.random() * 100) + 'vw';
                 el.style.top = '100vh';
                 el.style.fontSize = (Math.random() * 20 + 20) + 'px';
                 
                 document.body.appendChild(el);
                 
-                // Bay lên và xoay
                 setTimeout(() => {
                     el.style.top = '-' + (Math.random() * 20 + 10) + 'vh';
                     el.style.transform = `rotate(${Math.random() * 720 - 360}deg)`;
                 }, 50);
                 
-                // Xóa khỏi DOM sau khi bay xong
                 setTimeout(() => el.remove(), 1500);
             }
         }
 
-        // Bắt đầu game khi tải trang
         window.onload = generateQuestion;
     </script>
 </body>
